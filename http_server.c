@@ -64,6 +64,7 @@ int main(int argc,char *argv[])
     threadpool = threadpool_create(MAX_THREADS, 400);
 
 
+
     // Load the seats;
     load_seats(num_seats); //TODO read from argv
 
@@ -88,8 +89,11 @@ int main(int argc,char *argv[])
     while(1)
     {
         connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-        
-	threadpool_add_task(pool, handle_connection, (void*)connfd);
+        int* conn = malloc(sizeof(int));
+	*conn = connfd;
+	printf("%d\n", *conn);
+	printf("%p\n", conn);
+	threadpool_add_task(threadpool, handle_connection, conn);
         // single threaded
         //handle_connection(&connfd);
     }
