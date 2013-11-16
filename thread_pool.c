@@ -39,6 +39,10 @@ struct threadpool_t {
 static void *thread_do_work(void *threadpool);
 
 
+pthread_mutex_t thread_lock;
+pthread_mutex_t task_lock;
+pthread_cond_t task_on;
+
 /*
  * Create a threadpool, initialize variables, etc
  *
@@ -46,8 +50,7 @@ static void *thread_do_work(void *threadpool);
 threadpool_t *threadpool_create(int thread_count, int queue_size)
 {
   int i;
-  threadpool_t* pool = NULL;
-  pool = malloc(sizeof(threadpool_t));
+  threadpool_t* pool = malloc(sizeof(threadpool_t));
   pool->thread_count = thread_count;
   pool->task_queue_size_limit = queue_size;
   pool->threads = malloc(thread_count * sizeof(pthread_t));
@@ -57,12 +60,14 @@ threadpool_t *threadpool_create(int thread_count, int queue_size)
       pool->queue[i].argument = malloc(sizeof(int));
       *(pool->queue[i].argument) = 0;
     }
-  // printf("pool %p\n", pool);
-  //pool->queue[0].argument = NULL;
+
   for(i=0;i<thread_count;i++)
     {
       pthread_create(&pool->threads[i], NULL, thread_do_work, (void*)pool);
     }
+  pthread_mutex_init(&lock, NULL);
+  pthread_mutex_init(&lock2, NULL);
+  pthread_cond_init(&task_on, NULL);
   return pool;
 }
 
@@ -75,13 +80,13 @@ int threadpool_add_task(threadpool_t *pool, void (*function)(int *), int *argume
 {
   int err = 0;
   /* Get the lock */
+  pthread_mutex_lock(&task_lock);
   /* Add task to queue */
-  //printf("*ARGUMENT %d\n", *argument);
-  pool->queue[0].function = function;  
-  pool->queue[0].argument = argument; 
-  //printf("QUEUE[0].ARGU %d\n", *(pool->queue[0].argument));
+  pool->queue[0].function = function;
+  pool->queue[0].argument = argument;
   /* pthread_cond_broadcast and unlock */
-  
+  pthread_cond_signal(&task_on);
+  pthread_mutex_unlock(&task_lock);
   return err;
 }
 
@@ -119,22 +124,14 @@ static void *thread_do_work(void *threadpool)
   while(1) {
     /* Lock must be taken to wait on conditional variable */
     
-    
+    pthread_mutex_lock(&thread_lock);
     /* Wait on condition variable, check for spurious wakeups.
        When returning from pthread_cond_wait(), do some task. */
-    
-    //printf("No\n");
-        /* Grab our task from the queue */
-    printf("%d\n", *(thread->queue[0].argument));
-    if(*(thread->queue[0].argument))
-      {
-	printf("OK\n");
-	thread->queue[0].function(thread->queue[0].argument);
-	*(thread->queue[0].argument) = 0;
-      }
-    
+    pthread_cond_wait(&task_on, &thread_lock);
+    /* Grab our task from the queue */
+
     /* Unlock mutex for others */
-    
+    pthread_mutex_unlock(&thread_lock);
     
     /* Start the task */
     
