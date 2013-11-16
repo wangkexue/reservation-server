@@ -17,7 +17,7 @@
 
 #define BUFSIZE 1024
 #define FILENAMESIZE 100
-#define MAX_THREADS 10
+#define MAX_THREADS 50
 
 void shutdown_server(int);
 
