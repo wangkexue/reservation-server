@@ -1,7 +1,7 @@
 #ifndef _THREADPOOL_H_
 #define _THREADPOOL_H_
 
-#define MAX_THREADS 20
+//#define MAX_THREADS 20
 
 typedef struct threadpool_t threadpool_t;
 
@@ -22,7 +22,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size);
  * @param argument Argument to be passed to the function.
  * @return 0 if all goes well, negative values in case of error
  */
-int threadpool_add_task(threadpool_t *pool, void (*routine)(int *), int *arg);
+int threadpool_add_task(threadpool_t *pool, int (*routine)(void *), int *arg);
 
 /**
  * @function threadpool_destroy

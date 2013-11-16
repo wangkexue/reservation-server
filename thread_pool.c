@@ -18,7 +18,7 @@
 //typedef struct threadpool_task_t* task_t;
 
 typedef struct task_t{
-    void (*function)(int *);
+    int (*function)(void *);
     int *argument;
     struct task_t* next;
 } threadpool_task_t;
@@ -79,7 +79,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size)
  * Add a task to the threadpool
  *
  */
-int threadpool_add_task(threadpool_t *pool, void (*function)(int *), int *argument)
+int threadpool_add_task(threadpool_t *pool, int (*function)(void *), int *argument)
 {
   int err = 0;
   /* Get the lock */
@@ -156,7 +156,7 @@ static void *thread_do_work(void *threadpool)
     
     /* Start the task */
     task->function(task->argument);
-    printf("bu ke xue");
+   // printf("bu ke xue");
   }
   //printf("bu ke xue\n");
   pthread_exit(NULL);
