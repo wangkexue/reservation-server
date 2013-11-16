@@ -17,7 +17,7 @@
 
 #define BUFSIZE 1024
 #define FILENAMESIZE 100
-#define MAX_THREADS 20
+#define MAX_THREADS 10
 
 void shutdown_server(int);
 
@@ -91,8 +91,8 @@ int main(int argc,char *argv[])
         connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
         int* conn = malloc(sizeof(int));
 	*conn = connfd;
-	printf("%d\n", *conn);
-	printf("%p\n", conn);
+	//printf("%d\n", *conn);
+	//printf("%p\n", conn);
 	threadpool_add_task(threadpool, handle_connection, conn);
         // single threaded
         //handle_connection(&connfd);
