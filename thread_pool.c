@@ -15,18 +15,24 @@
  *  @var function Pointer to the function that will perform the task.
  *  @var argument Argument to be passed to the function.
  */
+//typedef struct threadpool_task_t* task_t;
 
-typedef struct {
+typedef struct task_t{
     void (*function)(int *);
     int *argument;
+    struct task_t* next;
 } threadpool_task_t;
 
+typedef struct {
+  threadpool_task_t *head;
+  threadpool_task_t *tail;
+} queue_t;
 
 struct threadpool_t {
   pthread_mutex_t lock;
   pthread_cond_t notify;
   pthread_t *threads;
-  threadpool_task_t *queue;
+  queue_t queue;
   int thread_count;
   int task_queue_size_limit;
 };
@@ -54,20 +60,17 @@ threadpool_t *threadpool_create(int thread_count, int queue_size)
   pool->thread_count = thread_count;
   pool->task_queue_size_limit = queue_size;
   pool->threads = malloc(thread_count * sizeof(pthread_t));
-  pool->queue = malloc(queue_size * sizeof(threadpool_task_t));
-  for(i=0;i<queue_size;i++)
-    {
-      pool->queue[i].argument = malloc(sizeof(int));
-      *(pool->queue[i].argument) = 0;
-    }
+  
+  pool->queue.head = NULL;
+  pool->queue.tail = NULL;
 
   for(i=0;i<thread_count;i++)
     {
       pthread_create(&pool->threads[i], NULL, thread_do_work, (void*)pool);
     }
-  pthread_mutex_init(&lock, NULL);
-  pthread_mutex_init(&lock2, NULL);
-  pthread_cond_init(&task_on, NULL);
+  pthread_mutex_init(&pool->lock, NULL);
+  //pthread_mutex_init(&task_lock, NULL);
+  pthread_cond_init(&pool->notify, NULL);
   return pool;
 }
 
@@ -80,13 +83,27 @@ int threadpool_add_task(threadpool_t *pool, void (*function)(int *), int *argume
 {
   int err = 0;
   /* Get the lock */
-  pthread_mutex_lock(&task_lock);
+  pthread_mutex_lock(&pool->lock);
   /* Add task to queue */
-  pool->queue[0].function = function;
-  pool->queue[0].argument = argument;
+  // add task to the queue's tail
+  threadpool_task_t* task = malloc(sizeof(threadpool_task_t));
+  task->function = function;
+  task->argument = argument;
+  task->next = NULL;
+  if(pool->queue.head == NULL)
+    pool->queue.head = task;
+  if(pool->queue.tail == NULL)
+    {
+      pool->queue.tail = task;
+    }
+  else
+    {
+      pool->queue.tail->next = task;
+      pool->queue.tail = task;
+    }
   /* pthread_cond_broadcast and unlock */
-  pthread_cond_signal(&task_on);
-  pthread_mutex_unlock(&task_lock);
+  pthread_cond_signal(&pool->notify);
+  pthread_mutex_unlock(&pool->lock);
   return err;
 }
 
@@ -108,6 +125,7 @@ int threadpool_destroy(threadpool_t *pool)
         
 
     /* Only if everything went well do we deallocate the pool */
+    free(pool);
     return err;
 }
 
@@ -124,19 +142,23 @@ static void *thread_do_work(void *threadpool)
   while(1) {
     /* Lock must be taken to wait on conditional variable */
     
-    pthread_mutex_lock(&thread_lock);
+    pthread_mutex_lock(&thread->lock);
     /* Wait on condition variable, check for spurious wakeups.
        When returning from pthread_cond_wait(), do some task. */
-    pthread_cond_wait(&task_on, &thread_lock);
+    pthread_cond_wait(&thread->notify, &thread->lock);
     /* Grab our task from the queue */
-
+    threadpool_task_t* task = thread->queue.head;
+    thread->queue.head = thread->queue.head->next;
+    if(thread->queue.head == NULL)
+      thread->queue.tail = NULL;
     /* Unlock mutex for others */
-    pthread_mutex_unlock(&thread_lock);
+    pthread_mutex_unlock(&thread->lock);
     
     /* Start the task */
-    
+    task->function(task->argument);
+    printf("bu ke xue");
   }
-  
+  //printf("bu ke xue\n");
   pthread_exit(NULL);
   return(NULL);
 }
