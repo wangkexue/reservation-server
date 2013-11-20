@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-//#include <stdio.h>
+#include <stdio.h>
 
 #include "thread_pool.h"
 
@@ -17,7 +17,6 @@
  */
 
 typedef struct task_t{
-    int (*function)(void *);
     int *argument;
     struct task_t* next;
 } threadpool_task_t;
@@ -31,6 +30,7 @@ struct threadpool_t {
   pthread_mutex_t lock;
   pthread_cond_t notify;
   pthread_t *threads;
+  int (*function)(void *);
   queue_t queue;
   int thread_count;
   int task_queue_size_limit;
@@ -55,7 +55,7 @@ pthread_cond_t task_on;
  * Create a threadpool, initialize variables, etc
  *
  */
-threadpool_t *threadpool_create(int thread_count, int queue_size)
+threadpool_t *threadpool_create(int thread_count, int queue_size, int (*function)(void*))
 {
   int i;
   //over = 0;
@@ -63,12 +63,14 @@ threadpool_t *threadpool_create(int thread_count, int queue_size)
   pool->thread_count = thread_count;
   pool->task_queue_size_limit = queue_size;
   pool->threads = malloc(thread_count * sizeof(pthread_t));
-  
+
+  pool->function = function;
+
   pool->queue.head = NULL;
   pool->queue.tail = NULL;
 
   //pthread_attr_init(&attr);
-  //pthread_attr_setdetachstate(&attr, PTHREAD_CREAT_JOINABLE);
+  //pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
   for(i=0;i<thread_count;i++)
     {
       pthread_create(&pool->threads[i], NULL, thread_do_work, (void*)pool);
@@ -85,7 +87,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size)
  * Add a task to the threadpool
  *
  */
-int threadpool_add_task(threadpool_t *pool, int (*function)(void *), int *argument)
+int threadpool_add_task(threadpool_t *pool, int *argument)
 {
   int err = 0;
   /* Get the lock */
@@ -93,7 +95,7 @@ int threadpool_add_task(threadpool_t *pool, int (*function)(void *), int *argume
   /* Add task to queue */
   // add task to the queue's tail
   threadpool_task_t* task = malloc(sizeof(threadpool_task_t));
-  task->function = function;
+  //task->function = function;
   task->argument = argument;
   task->next = NULL;
   if(pool->queue.head == NULL)
@@ -125,18 +127,20 @@ int threadpool_destroy(threadpool_t *pool)
     int i;
     
     /* Wake up all worker threads */
-    pthread_mutex_lock(&pool->lock);
+    //pthread_mutex_lock(&pool->lock);
     //int count = pool->thread_count;
     //over = 1;
     for(i=0;i<pool->thread_count;i++)
       pthread_cond_signal(&pool->notify);
-    pthread_mutex_unlock(&pool->lock);
     /* Join all worker thread */
     for(i=0;i<pool->thread_count;i++)        
       pthread_join(pool->threads[i], NULL);
-    pthread_exit(NULL);
+    //pthread_mutex_unlock(&pool->lock);
+
+    //pthread_exit(NULL);
+ 
     /* Only if everything went well do we deallocate the pool */
-    for(i=0;i<pool->task_queue_size_limit;i++)
+    while(pool->queue.head != NULL)
       {
 	threadpool_task_t* task = pool->queue.head;
 	pool->queue.head = pool->queue.head->next;
@@ -144,9 +148,12 @@ int threadpool_destroy(threadpool_t *pool)
 	free(task);
       }
     free(pool->threads);
-    pthread_mutex_destroy(&pool->lock);
     pthread_cond_destroy(&pool->notify);
+    pthread_mutex_destroy(&pool->lock);
+    //  printf("!!!\n");
     free(pool);
+
+
     return err;
 }
 
@@ -178,7 +185,9 @@ static void *thread_do_work(void *threadpool)
     pthread_mutex_unlock(&thread->lock);
     
     /* Start the task */
-    task->function(task->argument);
+    thread->function(task->argument);
+    free(task->argument);
+    free(task);
     //thread->thread_count++;
   }
   //printf("OK\n");
