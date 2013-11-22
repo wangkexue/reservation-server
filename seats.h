@@ -1,5 +1,6 @@
 #ifndef _SEAT_OPERATIONS_H_
 #define _SEAT_OPERATIONS_H_
+#include <pthread.h>
 
 typedef enum 
 {
@@ -13,6 +14,7 @@ typedef struct seat_struct
     int id;
     int customer_id;
     seat_state_t state;
+    pthread_mutex_t lock;
     struct seat_struct* next;
 } seat_t;
 

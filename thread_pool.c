@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include <stdio.h>
+//#include <stdio.h>
 
 #include "thread_pool.h"
 
@@ -16,16 +16,32 @@
  *  @var argument Argument to be passed to the function.
  */
 
+/**
+ *  @struct task_t
+ *  @brief task which wait in queue
+ *  since every task use the same function
+ *  we store the function in threadpool rather than here
+ *  @var argument Be passed to function
+ *  @var next Pointer to next task 
+ */
 typedef struct task_t{
     int *argument;
     struct task_t* next;
 } threadpool_task_t;
-
+/* 
+ *  @struct queue_t
+ *  @brief singly-linked list as worker queue
+ *  @var head Where thread fetch job
+ *  @var tail Where new task added
+ */
 typedef struct {
   threadpool_task_t *head;
   threadpool_task_t *tail;
 } queue_t;
-
+/*
+ *  @struct threadpool_t
+ *  @var over Flag for server-down
+ */
 struct threadpool_t {
   pthread_mutex_t lock;
   pthread_cond_t notify;
@@ -34,6 +50,7 @@ struct threadpool_t {
   queue_t queue;
   int thread_count;
   int task_queue_size_limit;
+  unsigned char over;
 };
 
 /**
@@ -58,8 +75,8 @@ pthread_cond_t task_on;
 threadpool_t *threadpool_create(int thread_count, int queue_size, int (*function)(void*))
 {
   int i;
-  //over = 0;
-  threadpool_t* pool = malloc(sizeof(threadpool_t));
+
+  threadpool_t* pool = (threadpool_t*)malloc(sizeof(threadpool_t));
   pool->thread_count = thread_count;
   pool->task_queue_size_limit = queue_size;
   pool->threads = malloc(thread_count * sizeof(pthread_t));
@@ -77,7 +94,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int (*function
     }
   //pthread_attr_destroy(&attr);
   pthread_mutex_init(&pool->lock, NULL);
-  //pthread_mutex_init(&task_lock, NULL);
+
   pthread_cond_init(&pool->notify, NULL);
   return pool;
 }
@@ -94,7 +111,7 @@ int threadpool_add_task(threadpool_t *pool, int *argument)
   pthread_mutex_lock(&pool->lock);
   /* Add task to queue */
   // add task to the queue's tail
-  threadpool_task_t* task = malloc(sizeof(threadpool_task_t));
+  threadpool_task_t* task = (threadpool_task_t*)malloc(sizeof(threadpool_task_t));
   //task->function = function;
   task->argument = argument;
   task->next = NULL;
@@ -109,6 +126,8 @@ int threadpool_add_task(threadpool_t *pool, int *argument)
       pool->queue.tail->next = task;
       pool->queue.tail = task;
     }
+
+  pool->over = 0;
   /* pthread_cond_broadcast and unlock */
   pthread_cond_signal(&pool->notify);
   pthread_mutex_unlock(&pool->lock);
@@ -125,21 +144,20 @@ int threadpool_destroy(threadpool_t *pool)
 {
     int err = 0;
     int i;
-    
+  
     /* Wake up all worker threads */
-    //pthread_mutex_lock(&pool->lock);
-    //int count = pool->thread_count;
-    //over = 1;
+    pool->over = 1;
     for(i=0;i<pool->thread_count;i++)
-      pthread_cond_signal(&pool->notify);
+      { 
+	pthread_cond_signal(&pool->notify);
+      }
     /* Join all worker thread */
     for(i=0;i<pool->thread_count;i++)        
       pthread_join(pool->threads[i], NULL);
-    //pthread_mutex_unlock(&pool->lock);
-
-    //pthread_exit(NULL);
  
+   
     /* Only if everything went well do we deallocate the pool */
+    
     while(pool->queue.head != NULL)
       {
 	threadpool_task_t* task = pool->queue.head;
@@ -147,12 +165,12 @@ int threadpool_destroy(threadpool_t *pool)
 	free(task->argument);
 	free(task);
       }
-    free(pool->threads);
-    pthread_cond_destroy(&pool->notify);
-    pthread_mutex_destroy(&pool->lock);
-    //  printf("!!!\n");
-    free(pool);
 
+    //for(i=0;i<pool->thread_count;i++)
+    //  free(&pool->threads[i]);
+    free(pool->threads);
+
+    free(pool);
 
     return err;
 }
@@ -165,17 +183,16 @@ int threadpool_destroy(threadpool_t *pool)
  */
 static void *thread_do_work(void *threadpool)
 { 
-  threadpool_t* thread= (threadpool_t*)threadpool;
+  threadpool_t* thread = (threadpool_t*)threadpool;
   //printf("%d\n", *(thread->queue[0].argument));
   while(1) {
-    //if(over)
-    //break;
     /* Lock must be taken to wait on conditional variable */
     pthread_mutex_lock(&thread->lock);
     /* Wait on condition variable, check for spurious wakeups.
        When returning from pthread_cond_wait(), do some task. */
-    //thread->thread_count--;
     pthread_cond_wait(&thread->notify, &thread->lock);
+    if(thread->over==1)
+      break;
     /* Grab our task from the queue */
     threadpool_task_t* task = thread->queue.head;
     thread->queue.head = thread->queue.head->next;
@@ -188,9 +205,8 @@ static void *thread_do_work(void *threadpool)
     thread->function(task->argument);
     free(task->argument);
     free(task);
-    //thread->thread_count++;
   }
-  //printf("OK\n");
+
   pthread_exit(NULL);
   return(NULL);
 }
