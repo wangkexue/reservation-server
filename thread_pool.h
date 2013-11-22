@@ -7,6 +7,7 @@ typedef struct threadpool_t threadpool_t;
 typedef struct {
   int* connfd_ptr;
   char* buf;
+  int priority;
 } param_t; 
 
 /**
@@ -17,7 +18,7 @@ typedef struct {
  * @return a newly created thread pool or NULL
  */
  
-threadpool_t *threadpool_create(int thread_count, int queue_size, int (*routine)(void*));
+threadpool_t *threadpool_create(unsigned char thread_count, int (*routine)(void*));
 
 /**
  * @function threadpool_add

@@ -17,7 +17,7 @@
 
 #define BUFSIZE 1024
 #define FILENAMESIZE 100
-#define MAX_THREADS 50
+#define MAX_THREADS 49
 
 void shutdown_server(int);
 
@@ -61,7 +61,7 @@ int main(int argc,char *argv[])
 
     // initialize the threadpool
     // Set the number of threads and size of the queue
-    threadpool = threadpool_create(MAX_THREADS, 1001, handle_connection);
+    threadpool = threadpool_create(MAX_THREADS, handle_connection);
 
 
 
@@ -92,13 +92,14 @@ int main(int argc,char *argv[])
         int* conn = malloc(sizeof(int));
 	*conn = connfd;
 		
-	char buf[BUFSIZE+1];
+	char* buf = (char*)malloc((BUFSIZE+1)*sizeof(char));
 	get_line(connfd, buf, BUFSIZE);
 	param_t* param = (param_t*)malloc(sizeof(param_t));
 	param->connfd_ptr = conn;
 	param->buf = buf;
 	int priority = parse_int_arg(buf, "priority=");
-	
+	param->priority = priority;
+
 	threadpool_add_task(threadpool, param, priority);
         // single threaded
         //handle_connection(&connfd);

@@ -27,6 +27,7 @@ void handle_connection(void* param)
 {
     param_t* _param = (param_t*)param;
     int connfd = *(_param->connfd_ptr);
+    int customer_priority = _param->priority;
 
     int fd;
     char* buf = _param->buf;
@@ -126,7 +127,7 @@ void handle_connection(void* param)
     
     int seat_id = parse_int_arg(file, "seat=");
     int user_id = parse_int_arg(file, "user=");
-    int customer_priority = parse_int_arg(file, "priority=");
+    //int customer_priority = parse_int_arg(file, "priority=");
     
     // Check if the request is for one of our operations
     if (strncmp(resource, "list_seats", length) == 0)
@@ -182,6 +183,8 @@ void handle_connection(void* param)
         } 
     }
     close(connfd);
+    free(_param->buf);
+    free(_param->connfd_ptr);
 }
 
 int get_line(int fd, char *buf, int size)
