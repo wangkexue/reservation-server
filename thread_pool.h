@@ -12,7 +12,7 @@ typedef struct threadpool_t threadpool_t;
  * @param queue_size   Size of the queue.
  * @return a newly created thread pool or NULL
  */
-threadpool_t *threadpool_create(int thread_count, int queue_size);
+threadpool_t *threadpool_create(int thread_count, int queue_size, int (*routine)(void*));
 
 /**
  * @function threadpool_add
@@ -22,7 +22,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size);
  * @param argument Argument to be passed to the function.
  * @return 0 if all goes well, negative values in case of error
  */
-int threadpool_add_task(threadpool_t *pool, int (*routine)(void *), int *arg);
+int threadpool_add_task(threadpool_t *pool, int *arg);
 
 /**
  * @function threadpool_destroy
