@@ -61,7 +61,7 @@ int main(int argc,char *argv[])
 
     // initialize the threadpool
     // Set the number of threads and size of the queue
-    threadpool = threadpool_create(MAX_THREADS, 400, handle_connection);
+    threadpool = threadpool_create(MAX_THREADS, 1001, handle_connection);
 
 
 
@@ -91,14 +91,15 @@ int main(int argc,char *argv[])
         connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
         int* conn = malloc(sizeof(int));
 	*conn = connfd;
-	/*	
+		
 	char buf[BUFSIZE+1];
 	get_line(connfd, buf, BUFSIZE);
-	int custon_priority = parse_int_arg(buf, "priority=");
-	printf("%d\n", custon_priority);
-	*/
-
-	threadpool_add_task(threadpool, conn);
+	param_t* param = (param_t*)malloc(sizeof(param_t));
+	param->connfd_ptr = conn;
+	param->buf = buf;
+	int priority = parse_int_arg(buf, "priority=");
+	
+	threadpool_add_task(threadpool, param, priority);
         // single threaded
         //handle_connection(&connfd);
     }

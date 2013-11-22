@@ -28,7 +28,7 @@ typedef struct task_t{
     int *argument;
     struct task_t* next;
 } threadpool_task_t;
-/* 
+/** 
  *  @struct queue_t
  *  @brief singly-linked list as worker queue
  *  @var head Where thread fetch job
@@ -38,7 +38,7 @@ typedef struct {
   threadpool_task_t *head;
   threadpool_task_t *tail;
 } queue_t;
-/*
+/**
  *  @struct threadpool_t
  *  @var over Flag for server-down
  */
@@ -104,7 +104,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int (*function
  * Add a task to the threadpool
  *
  */
-int threadpool_add_task(threadpool_t *pool, int *argument)
+int threadpool_add_task(threadpool_t *pool, void *argument, int priority)
 {
   int err = 0;
   /* Get the lock */

@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
+#include "thread_pool.h"
 
 #include "seats.h"
 
@@ -22,12 +23,13 @@ int get_line(int, char*,int);
 
 int parse_int_arg(char* filename, char* arg);
 
-void handle_connection(int* connfd_ptr)
+void handle_connection(void* param)
 {
-    int connfd = *(connfd_ptr);
+    param_t* _param = (param_t*)param;
+    int connfd = *(_param->connfd_ptr);
 
     int fd;
-    char buf[BUFSIZE+1];
+    char* buf = _param->buf;
     char instr[20];
     char file[100];
     char type[20];
@@ -59,7 +61,7 @@ void handle_connection(int* connfd_ptr)
 
     //Expection Format: 'GET filenane.txt HTTP/1.X'
     
-    get_line(connfd, buf, BUFSIZE);
+    //get_line(connfd, buf, BUFSIZE);
     
     //parse out instruction
     while( !isspace(buf[j]) && (i < sizeof(instr) - 1))
