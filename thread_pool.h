@@ -3,6 +3,20 @@
 
 //#define PRIORITY_QUEUE
 
+#ifdef PRIORITY_QUEUE
+/**
+ * @struct param_t
+ * @brief  Param       which will be passed to handle_conn.
+ * @var    cornnfd_ptr Addr for connfd.
+ * @var    buf         Buffer read from connfd.
+ */
+typedef struct {
+  int* connfd_ptr;
+  char* buf;
+  int priority;
+} param_t; 
+#endif
+
 typedef struct threadpool_t threadpool_t;
 
 /**
@@ -22,8 +36,11 @@ threadpool_t *threadpool_create(unsigned char thread_count, int (*routine)(void*
  * @param argument Argument to be passed to the function.
  * @return 0 if all goes well, negative values in case of error
  */
+#ifdef PRIORITY_QUEUE
+void threadpool_add_task(threadpool_t *pool, void *arg, int priority);
+#else
 void threadpool_add_task(threadpool_t *pool, int *arg);
-
+#endif
 /**
  * @function threadpool_destroy
  * @brief Stops and destroys a thread pool.

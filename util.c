@@ -22,6 +22,171 @@ int get_line(int, char*,int);
 
 int parse_int_arg(char* filename, char* arg);
 
+#ifdef
+void handle_connection(void* param)
+{
+    param_t* _param = (param_t*)param;
+    int connfd = *(_param->connfd_ptr);
+    int customer_priority = _param->priority;
+
+    int fd;
+    char* buf = _param->buf;
+    char instr[20];
+    char file[100];
+    char type[20];
+
+    int i=0;
+    int j=0;
+
+    char *ok_response = "HTTP/1.0 200 OK\r\n"\
+                           "Content-type: text/html\r\n\r\n";
+
+    char *notok_response = "HTTP/1.0 404 FILE NOT FOUND\r\n"\
+                            "Content-type: text/html\r\n\r\n"\
+                            "<html><body bgColor=white text=black>\n"\
+                            "<h2>404 FILE NOT FOUND</h2>\n"\
+                            "</body></html>\n";
+
+    char *bad_request = "HTTP/1.0 400 BAD REQUEST\r\n"\
+                              "Content-type: text/html\r\n\r\n"\
+                              "<html><body><h2>BAD REQUEST</h2>"\
+                              "</body></html>\n";
+                              
+
+    // first read loop -- get request and headers
+
+    // parse request to get file name
+    // Assumption: this is a GET request and filename contains no spaces
+    // parse request
+    // get headers
+
+    //Expection Format: 'GET filenane.txt HTTP/1.X'
+    
+    //get_line(connfd, buf, BUFSIZE);
+    
+    //parse out instruction
+    while( !isspace(buf[j]) && (i < sizeof(instr) - 1))
+    {
+        instr[i] = buf[i];
+        i++;
+        j++;
+    }
+    j+=2;
+    instr[i] = '\0';
+
+
+    //Only accept GET requests
+    if (strncmp(instr, "GET", 3) != 0) {
+        writenbytes(connfd, bad_request, strlen(bad_request));
+        close(connfd);
+        return;
+    }
+
+    //parse out filename
+    i=0;
+    while (!isspace(buf[j]) && (i < sizeof(file) - 1))
+    {
+        file[i] = buf[j];
+        i++;
+        j++;
+    }
+    j++;
+    file[i] = '\0';
+
+    //parse out type
+    i=0;
+    while (!isspace(buf[j]) && (buf[j] != '\0') && (i < sizeof(type) - 1))
+    {
+        type[i] = buf[j];
+        i++;
+        j++;
+    }
+    type[i] = '\0';
+
+    while (get_line(connfd, buf, BUFSIZE) > 0)
+    {
+        //ignore headers -> (for now)
+    }
+
+    int length;
+    for(i = 0; i < strlen(file); i++)
+    {
+        if(file[i] == '?')
+            break;
+    }
+    length = i;
+    
+    char resource[length+1];
+
+    if (length > strlen(file)) {
+      length = strlen(file);
+    }
+
+    strncpy(resource, file, length);
+    resource[length] = 0;
+    
+    int seat_id = parse_int_arg(file, "seat=");
+    int user_id = parse_int_arg(file, "user=");
+    //int customer_priority = parse_int_arg(file, "priority=");
+    
+    // Check if the request is for one of our operations
+    if (strncmp(resource, "list_seats", length) == 0)
+    {  
+        list_seats(buf, BUFSIZE);
+        // send headers
+        writenbytes(connfd, ok_response, strlen(ok_response));
+        // send data
+        writenbytes(connfd, buf, strlen(buf));
+    } 
+    else if(strncmp(resource, "view_seat", length) == 0)
+    {
+        view_seat(buf, BUFSIZE, seat_id, user_id, customer_priority);
+        // send headers
+        writenbytes(connfd, ok_response, strlen(ok_response));
+        // send data
+        writenbytes(connfd, buf, strlen(buf));
+    } 
+    else if(strncmp(resource, "confirm", length) == 0)
+    {
+        confirm_seat(buf, BUFSIZE, seat_id, user_id, customer_priority);
+        // send headers
+        writenbytes(connfd, ok_response, strlen(ok_response));
+        // send data
+        writenbytes(connfd, buf, strlen(buf));
+    }
+    else if(strncmp(resource, "cancel", length) == 0)
+    {
+        cancel(buf, BUFSIZE, seat_id, user_id, customer_priority);
+        // send headers
+        writenbytes(connfd, ok_response, strlen(ok_response));
+        // send data
+        writenbytes(connfd, buf, strlen(buf));
+    }
+    else
+    {
+        // try to open the file
+        if ((fd = open(resource, O_RDONLY)) == -1)
+        {
+            writenbytes(connfd, notok_response, strlen(notok_response));
+        } 
+        else
+        {
+            // send headers
+            writenbytes(connfd, ok_response, strlen(ok_response));
+            // send file
+            int ret;
+            while ( (ret = read(fd, buf, BUFSIZE)) > 0) {
+                writenbytes(connfd, buf, ret);
+            }  
+            // close file and free space
+            close(fd);
+        } 
+    }
+    close(connfd);
+    free(_param->buf);
+    free(_param->connfd_ptr);
+}
+#else
 void handle_connection(int* connfd_ptr)
 {
     int connfd = *(connfd_ptr);
@@ -181,6 +346,7 @@ void handle_connection(int* connfd_ptr)
     }
     close(connfd);
 }
+#endif
 
 int get_line(int fd, char *buf, int size)
 {

@@ -93,17 +93,23 @@ int main(int argc,char *argv[])
         int* conn = malloc(sizeof(int));
 	*conn = connfd;
 
-	#ifdef PRIORITY
-	//int _connfd = dup(connfd);
-	//printf("%d\n", _connfd);
-	//char tmp[BUFSIZE+1];
-	//get_line(connfd, tmp, BUFSIZE);
-	//off_t pos = lseek(connfd, 0, SEEK_CUR);
-	//printf("%jd\n", (intmax_t)pos);
-	//close(connfd);
-	#endif
+#ifdef PRIORITY
+	/* obtian the priority and read connfd before handle_connd
+         * use the getted buf and connfd as input
+         * thus we can put a task into different queues based on its priority 
+	 */
+        char* buf = (char*)malloc((BUFSIZE+1)*sizeof(char));
+	get_line(connfd, buf, BUFSIZE);
+	param_t* param = (param_t*)malloc(sizeof(param_t));
+	param->connfd_ptr = conn;
+	param->buf = buf;
+	int priority = parse_int_arg(buf, "priority=");
+	param->priority = priority;
+	threadpool_add_task(threadpool, param, priority);
+#else	
         // when a request come, add it to the worker queue 
 	threadpool_add_task(threadpool, conn);
+#endif      
         // single threaded
         //handle_connection(&connfd);
     }

@@ -42,6 +42,20 @@ typedef struct {
  *  @struct threadpool_t
  *  @var over Flag for server-down
  */
+#ifdef PRIORITY_QUEUE
+struct threadpool_t {
+  pthread_mutex_t lock;
+  pthread_cond_t notify;
+  pthread_t *threads;
+  int (*function)(void *);
+  queue_t q1;
+  queue_t q2;
+  queue_t q3;
+  unsigned char thread_count;
+  //int task_queue_size_limit;
+  unsigned char over;
+};
+#else
 struct threadpool_t {
   pthread_mutex_t lock;
   pthread_cond_t notify;
@@ -52,6 +66,7 @@ struct threadpool_t {
   //int task_queue_size_limit;
   unsigned char over;
 };
+#endif
 
 /**
  * @function void *threadpool_work(void *threadpool)
@@ -83,8 +98,17 @@ threadpool_t *threadpool_create(unsigned char thread_count, int (*function)(void
 
   pool->function = function;
 
+#ifdef PRIORITY_QUEUE
+  pool->q1.head = NULL;
+  pool->q1.tail = NULL;
+  pool->q2.head = NULL;
+  pool->q2.tail = NULL;
+  pool->q3.head = NULL;
+  pool->q3.tail = NULL;  
+#else
   pool->queue.head = NULL;
   pool->queue.tail = NULL;
+#endif
 
   //pthread_attr_init(&attr);
   //pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -104,16 +128,80 @@ threadpool_t *threadpool_create(unsigned char thread_count, int (*function)(void
  * Add a task to the threadpool
  *
  */
+#ifdef PRIORITY_QUEUE
+void threadpool_add_task(threadpool_t *pool, void *argument, int priority)
+{
+  /* Get the lock */
+  pthread_mutex_lock(&pool->lock);
+  /* Add task to queue */
+  /* add task to the queue's tail */
+  threadpool_task_t* task = (threadpool_task_t*)malloc(sizeof(threadpool_task_t));
+  //task->function = function;
+  task->argument = argument;
+  task->next = NULL;
+
+  /* add task to the queue corresponding to its priority*/
+  if(priority == 1)
+    {
+      if(pool->q1.head == NULL)
+	pool->q1.head = task;
+      if(pool->q1.tail == NULL)
+	{
+	  pool->q1.tail = task;
+	}
+      else
+	{
+	  pool->q1.tail->next = task;
+	  pool->q1.tail = task;
+	}
+    }
+  else if(priority == 2)
+    {
+      if(pool->q2.head == NULL)
+	pool->q2.head = task;
+      if(pool->q2.tail == NULL)
+	{
+	  pool->q2.tail = task;
+	}
+      else
+	{
+	  pool->q2.tail->next = task;
+	  pool->q2.tail = task;
+	}
+    }
+  else
+    {
+      if(pool->q3.head == NULL)
+	pool->q3.head = task;
+      if(pool->q3.tail == NULL)
+	{
+	  pool->q3.tail = task;
+	}
+      else
+	{
+	  pool->q3.tail->next = task;
+	  pool->q3.tail = task;
+	}
+    }
+
+  pool->over = 0;
+  /* pthread_cond_broadcast and unlock */
+  pthread_cond_signal(&pool->notify);
+  pthread_mutex_unlock(&pool->lock);
+
+}
+#else
 void threadpool_add_task(threadpool_t *pool, int *argument)
 {
   /* Get the lock */
   pthread_mutex_lock(&pool->lock);
   /* Add task to queue */
-  // add task to the queue's tail
+  /* add task to the queue's tail */
   threadpool_task_t* task = (threadpool_task_t*)malloc(sizeof(threadpool_task_t));
   //task->function = function;
   task->argument = argument;
   task->next = NULL;
+
   if(pool->queue.head == NULL)
     pool->queue.head = task;
   if(pool->queue.tail == NULL)
@@ -130,10 +218,8 @@ void threadpool_add_task(threadpool_t *pool, int *argument)
   /* pthread_cond_broadcast and unlock */
   pthread_cond_signal(&pool->notify);
   pthread_mutex_unlock(&pool->lock);
-
 }
-
-
+#endif
 
 /*
  * Destroy the threadpool, free all memory, destroy treads, etc
@@ -156,6 +242,29 @@ void threadpool_destroy(threadpool_t *pool)
    
     /* Only if everything went well do we deallocate the pool */
     
+  #ifdef PRIORITY_QUEUE
+    while(pool->q1.head != NULL)
+      {
+	threadpool_task_t* task = pool->q1.head;
+	pool->q1.head = pool->q1.head->next;
+	free(task->argument);
+	free(task);
+      }
+    while(pool->q2.head != NULL)
+      {
+	threadpool_task_t* task = pool->q2.head;
+	pool->q2.head = pool->q2.head->next;
+	free(task->argument);
+	free(task);
+      }
+    while(pool->q3.head != NULL)
+      {
+	threadpool_task_t* task = pool->q3.head;
+	pool->q3.head = pool->q3.head->next;
+	free(task->argument);
+	free(task);
+      }
+  #else
     while(pool->queue.head != NULL)
       {
 	threadpool_task_t* task = pool->queue.head;
@@ -163,6 +272,7 @@ void threadpool_destroy(threadpool_t *pool)
 	free(task->argument);
 	free(task);
       }
+  #endif
 
     //for(i=0;i<pool->thread_count;i++)
     //  free(&pool->threads[i]);
@@ -190,10 +300,36 @@ static void *thread_do_work(void *threadpool)
     if(thread->over==1)
       break;
     /* Grab our task from the queue */
+    #ifdef PRIORITY_QUEUE
+    /* serve from highest priority task to lowest */
+    threadpool_task_t* task = NULL;
+    if(thread->q1.head)
+      { 
+	task = thread->q1.head;
+	thread->q1.head = thread->q1.head->next;
+	if(thread->q1.head == NULL)
+	  thread->q1.tail = NULL;
+      }
+    else if(thread->q2.head)
+      {
+	task = thread->q2.head;
+	thread->q2.head = thread->q2.head->next;
+	if(thread->q2.head == NULL)
+	  thread->q2.tail = NULL;
+      }
+    else
+      {
+	task = thread->q3.head;
+	thread->q3.head = thread->q3.head->next;
+	if(thread->q3.head == NULL)
+	  thread->q3.tail = NULL;
+      }
+    #else
     threadpool_task_t* task = thread->queue.head;
     thread->queue.head = thread->queue.head->next;
     if(thread->queue.head == NULL)
       thread->queue.tail = NULL;
+    #endif
     /* Unlock mutex for others */
     pthread_mutex_unlock(&thread->lock);
     
