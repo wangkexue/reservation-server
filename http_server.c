@@ -15,9 +15,10 @@
 #include "seats.h"
 #include "util.h"
 
+//#define PRIORITY
 #define BUFSIZE 1024
 #define FILENAMESIZE 100
-#define MAX_THREADS 50
+#define MAX_THREADS 49
 
 void shutdown_server(int);
 
@@ -61,7 +62,7 @@ int main(int argc,char *argv[])
 
     // initialize the threadpool
     // Set the number of threads and size of the queue
-    threadpool = threadpool_create(MAX_THREADS, 400, handle_connection);
+    threadpool = threadpool_create(MAX_THREADS, handle_connection);
 
 
 
@@ -91,13 +92,17 @@ int main(int argc,char *argv[])
         connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
         int* conn = malloc(sizeof(int));
 	*conn = connfd;
-	/*	
-	char buf[BUFSIZE+1];
-	get_line(connfd, buf, BUFSIZE);
-	int custon_priority = parse_int_arg(buf, "priority=");
-	printf("%d\n", custon_priority);
-	*/
 
+	#ifdef PRIORITY
+	//int _connfd = dup(connfd);
+	//printf("%d\n", _connfd);
+	//char tmp[BUFSIZE+1];
+	//get_line(connfd, tmp, BUFSIZE);
+	//off_t pos = lseek(connfd, 0, SEEK_CUR);
+	//printf("%jd\n", (intmax_t)pos);
+	//close(connfd);
+	#endif
+        // when a request come, add it to the worker queue 
 	threadpool_add_task(threadpool, conn);
         // single threaded
         //handle_connection(&connfd);

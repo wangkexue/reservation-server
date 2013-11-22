@@ -48,8 +48,8 @@ struct threadpool_t {
   pthread_t *threads;
   int (*function)(void *);
   queue_t queue;
-  int thread_count;
-  int task_queue_size_limit;
+  unsigned char thread_count;
+  //int task_queue_size_limit;
   unsigned char over;
 };
 
@@ -72,13 +72,13 @@ pthread_cond_t task_on;
  * Create a threadpool, initialize variables, etc
  *
  */
-threadpool_t *threadpool_create(int thread_count, int queue_size, int (*function)(void*))
+threadpool_t *threadpool_create(unsigned char thread_count, int (*function)(void*))
 {
   int i;
 
   threadpool_t* pool = (threadpool_t*)malloc(sizeof(threadpool_t));
   pool->thread_count = thread_count;
-  pool->task_queue_size_limit = queue_size;
+  //pool->task_queue_size_limit = queue_size;
   pool->threads = malloc(thread_count * sizeof(pthread_t));
 
   pool->function = function;
@@ -104,9 +104,8 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int (*function
  * Add a task to the threadpool
  *
  */
-int threadpool_add_task(threadpool_t *pool, int *argument)
+void threadpool_add_task(threadpool_t *pool, int *argument)
 {
-  int err = 0;
   /* Get the lock */
   pthread_mutex_lock(&pool->lock);
   /* Add task to queue */
@@ -131,7 +130,7 @@ int threadpool_add_task(threadpool_t *pool, int *argument)
   /* pthread_cond_broadcast and unlock */
   pthread_cond_signal(&pool->notify);
   pthread_mutex_unlock(&pool->lock);
-  return err;
+
 }
 
 
@@ -140,9 +139,8 @@ int threadpool_add_task(threadpool_t *pool, int *argument)
  * Destroy the threadpool, free all memory, destroy treads, etc
  *
  */
-int threadpool_destroy(threadpool_t *pool)
+void threadpool_destroy(threadpool_t *pool)
 {
-    int err = 0;
     int i;
   
     /* Wake up all worker threads */
@@ -171,8 +169,6 @@ int threadpool_destroy(threadpool_t *pool)
     free(pool->threads);
 
     free(pool);
-
-    return err;
 }
 
 

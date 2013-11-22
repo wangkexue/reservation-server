@@ -1,7 +1,7 @@
 #ifndef _THREADPOOL_H_
 #define _THREADPOOL_H_
 
-//#define MAX_THREADS 20
+//#define PRIORITY_QUEUE
 
 typedef struct threadpool_t threadpool_t;
 
@@ -12,7 +12,7 @@ typedef struct threadpool_t threadpool_t;
  * @param queue_size   Size of the queue.
  * @return a newly created thread pool or NULL
  */
-threadpool_t *threadpool_create(int thread_count, int queue_size, int (*routine)(void*));
+threadpool_t *threadpool_create(unsigned char thread_count, int (*routine)(void*));
 
 /**
  * @function threadpool_add
@@ -22,7 +22,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int (*routine)
  * @param argument Argument to be passed to the function.
  * @return 0 if all goes well, negative values in case of error
  */
-int threadpool_add_task(threadpool_t *pool, int *arg);
+void threadpool_add_task(threadpool_t *pool, int *arg);
 
 /**
  * @function threadpool_destroy
@@ -33,6 +33,6 @@ int threadpool_add_task(threadpool_t *pool, int *arg);
  * which case the thread pool doesn't accept any new tasks but
  * processes all pending tasks before shutdown.
  */
-int threadpool_destroy(threadpool_t *pool);
+void threadpool_destroy(threadpool_t *pool);
 
 #endif

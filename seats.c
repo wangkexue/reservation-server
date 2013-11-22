@@ -60,7 +60,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
     {
         if(curr->id == seat_id)
         {
-	  pthread_mutex_lock(&curr->lock);
+	  //pthread_mutex_lock(&curr->lock);
             if(curr->state == PENDING && curr->customer_id == customer_id )
             {
                 snprintf(buf, bufsize, "Seat confirmed: %d %c\n\n",
@@ -75,7 +75,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
             {
                 snprintf(buf, bufsize, "No pending request\n\n");
             }
-	pthread_mutex_unlock(&curr->lock);
+	    //pthread_mutex_unlock(&curr->lock);
             return;
         }
         curr = curr->next;
@@ -94,7 +94,7 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
     {
         if(curr->id == seat_id)
         {
-	  pthread_mutex_lock(&curr->lock);
+	  //pthread_mutex_lock(&curr->lock);
             if(curr->state == PENDING && curr->customer_id == customer_id )
             {
                 snprintf(buf, bufsize, "Seat request cancelled: %d %c\n\n",
@@ -109,7 +109,7 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
             {
                 snprintf(buf, bufsize, "No pending request\n\n");
             }
-	    pthread_mutex_unlock(&curr->lock);
+	    //pthread_mutex_unlock(&curr->lock);
             return;
         }
         curr = curr->next;
