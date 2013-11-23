@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
-
+#include "thread_pool.h"
 #include "seats.h"
 
 #define BUFSIZE 1024
