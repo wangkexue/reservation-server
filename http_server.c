@@ -18,7 +18,7 @@
 //#define PRIORITY
 #define BUFSIZE 1024
 #define FILENAMESIZE 100
-#define MAX_THREADS 49
+#define MAX_THREADS 40
 
 void shutdown_server(int);
 
