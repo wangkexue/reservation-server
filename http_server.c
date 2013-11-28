@@ -15,7 +15,6 @@
 #include "seats.h"
 #include "util.h"
 
-//#define PRIORITY
 #define BUFSIZE 1024
 #define FILENAMESIZE 100
 #define MAX_THREADS 40
@@ -62,9 +61,7 @@ int main(int argc,char *argv[])
 
     // initialize the threadpool
     // Set the number of threads and size of the queue
-    threadpool = threadpool_create(MAX_THREADS, handle_connection);
-
-
+    threadpool = threadpool_create(MAX_THREADS, 9, handle_connection);
 
     // Load the seats;
     load_seats(num_seats); //TODO read from argv
@@ -93,7 +90,7 @@ int main(int argc,char *argv[])
         int* conn = malloc(sizeof(int));
 	*conn = connfd;
 
-#ifdef PRIORITY
+#ifdef PRIORITY_QUEUE
 	/* obtian the priority and read connfd before handle_connd
          * use the getted buf and connfd as input
          * thus we can put a task into different queues based on its priority 
@@ -106,7 +103,7 @@ int main(int argc,char *argv[])
 	int priority = parse_int_arg(buf, "priority=");
 	param->priority = priority;
 	threadpool_add_task(threadpool, param, priority);
-#else	
+#else
         // when a request come, add it to the worker queue 
 	threadpool_add_task(threadpool, conn);
 #endif      

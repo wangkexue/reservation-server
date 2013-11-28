@@ -12,17 +12,20 @@
 #include <errno.h>
 
 #include "thread_pool.h"
+//#include "util.h"
 #include "seats.h"
 
 #define BUFSIZE 1024
 
 int writenbytes(int,char *,int);
+
 int readnbytes(int,char *,int);
+//#ifndef PRIORITY_QUEUE
 int get_line(int, char*,int);
-
 int parse_int_arg(char* filename, char* arg);
+//#endif
 
-#ifdef
+#ifdef PRIORITY_QUEUE
 void handle_connection(void* param)
 {
     param_t* _param = (param_t*)param;

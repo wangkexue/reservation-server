@@ -26,7 +26,7 @@ typedef struct threadpool_t threadpool_t;
  * @param queue_size   Size of the queue.
  * @return a newly created thread pool or NULL
  */
-threadpool_t *threadpool_create(unsigned char thread_count, int (*routine)(void*));
+threadpool_t *threadpool_create(unsigned char thread_count,unsigned char queue_size,  int (*routine)(void*));
 
 /**
  * @function threadpool_add
